@@ -35,6 +35,7 @@ async def connect(sid, environ, auth=None):
                 ) from exc
 
     await sio.save_session(sid, {"user_id": user_id})
+    print("✅ Client connected:", sid)
     if user_id is not None:
         await broadcast_connected_users()
 
@@ -70,7 +71,6 @@ async def broadcast_connected_users():
 async def require_authenticated(sid):
     session = await sio.get_session(sid)
     if session.get("user_id") is None:
-        print("Socket is not authenticated:", sid)
         await sio.emit(
             "error",
             {"message": "Sign in required"},
@@ -185,7 +185,6 @@ async def chat_message(sid, data):
         {"message": json.dumps(message)},
     )
 
-    print(json.dumps({"id": message_id, **message}))
     await redis_client.publish("chat", json.dumps({"id": message_id, **message}))
 
 
@@ -217,7 +216,7 @@ async def load_message_history():
     for message_id, data in result:
         try:
             message = json.loads(data["message"])
-        except (KeyError, TypeError, json.JSONDecodeError):
+        except KeyError, TypeError, json.JSONDecodeError:
             continue
         messages.append({"id": message_id, **message})
 
@@ -256,8 +255,6 @@ async def redis_listener():
                 continue
 
             event = json.loads(item["data"])
-
-            print("📨 Redis Pub/Sub:", event)
 
             await sio.emit(
                 "message",
